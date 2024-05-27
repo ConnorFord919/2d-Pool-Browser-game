@@ -179,12 +179,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     }
 
-    const cue = new Cue(10, 200);
+    const cue = new Cue(10, 200, "brown");
 
     function init() {
         const ballColors = ["black", "red", "green", "orange", "purple", "brown"];
         for (let i = 0; i < 6; i++) {
-            balls.push(new Ball(playArea.width / 2 + (i * 30), playArea.height / 2, ballColors[i]));
+            balls.push(new Ball(playArea.width / 2 + (i * 100) , playArea.height / 2, ballColors[i]));
         }
         animate();
     }
@@ -217,7 +217,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const relativeX = ball.x - mouse.x;
         const relativeY = ball.y - mouse.y;
-        console.log(relativeX)
+        
         if (relativeX < 0) ball.velx = -1;
         else ball.velx = 1;
         if (relativeY < 0)ball.vely = -1;
@@ -225,27 +225,63 @@ document.addEventListener("DOMContentLoaded", function() {
             
     }
     
-    function ballCollidingWithBall(ball, allBalls){
+    function ballCollidingWithBall(ball){
         let r = false;
-        allBalls.forEach((b) => {
-            if(Math.abs(ball.x - b.x) <= (ball.radius + b.radius)) r = true;
+        balls.forEach((b) => {
+            let sideA = Math.abs(ball.y - b.y);
+            let sideB = Math.abs(ball.x - b.x);
+            let distance = Math.sqrt(Math.pow(sideA, 2) + Math.pow(sideB, 2));
+
+            if(distance <= ball.radius + b.radius && b !== ball) r = true;
         })
         return r;
     }
-    function handleBallCollision(){
-        //use momentum in two planes equation to get x and y velocity for final ball
+    function handleBallCollision(ball){
+        console.log('negawatt', balls)
+        balls.forEach((b) => {
+            const dx = b.x - ball.x;
+            const dy = b.y - ball.y;
+            console.log(dx, dy)
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const nx = dx/distance*2;
+            const ny = dy/distance*2;
+
+            const dvx = b.velx - ball.velx;
+            const dvy = b.vely - ball.vely;
+
+            const vn = dvx * nx + dvy * ny;
+
+            if (vn > 0 || b === ball) return;
+
+            const impulse = (2 * vn) / (1 + 1);
+
+            ball.velx -= impulse * nx;
+            ball.vely -= impulse * ny;
+            b.velx += (impulse * nx)/200;
+            b.vely += (impulse * ny)/200;
+            console.log(nx)
+            const overlap = ball.radius + b.radius - distance;
+            const correctionX = nx * overlap / 2;
+            const correctionY = ny * overlap / 2;
+            console.log(correctionX, correctionY)
+            ball.x -= correctionX;
+            ball.y -= correctionY;
+            //b.x += correctionX;
+            //b.y += correctionY;
+
+        })
     }
 
     function animate() {
         //clear display
         ctx.clearRect(0, 0, playArea.width, playArea.height);
         //apply instructions to each ball
-        balls.forEach((ball, index) => {
+        balls.forEach((ball) => {
             ball.update();
             if (cueCollidingWithBall(ball, mouse)) {
                 handleQueCollision(ball);
             }
-            if(ballCollidingWithBall(ball, balls.splice(1, index))) handleBallCollision(ball);
+            if(ballCollidingWithBall(ball)) handleBallCollision(ball);
         });
         //update dues position to follow mouse
         if (mouse.x !== undefined && mouse.y !== undefined) {
