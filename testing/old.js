@@ -104,20 +104,31 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         update() {
             //vertical collisions
+
+            //pocket rectangle collisions
+            //horizontal
+            if(this.position.x + -this.radius + this.velocity.x < pockets.outCrop ||
+                this.position.x + this.radius + this.velocity.x > playArea.width - pockets.outCrop
+            ){
+                this.velocity.x = -this.velocity.x * 0.7;
+            }
+            //vertical
+            console.log('f')
             if (
-                this.position.y + this.radius + this.velocity.y > playArea.height ||
-                this.position.y - this.radius + this.velocity.y < 0
+                this.position.y + this.radius + this.velocity.y > playArea.height - pockets.outCrop ||
+                this.position.y - this.radius + this.velocity.y < pockets.outCrop
                 ) {
+                    console.log('vertical collision')
                 this.velocity.y = -this.velocity.y * 0.7; // some damping
             } 
             //horizontal collisions
-            if(
-                this.position.x + this.radius + this.velocity.x > playArea.width ||
-                this.position.x - this.radius + this.velocity.x < 0
-                ){
-                this.velocity.x = -this.velocity.x * 0.7;
-            }
-            this.velocity = this.velocity.multiplyByScalar(0.995)
+            //if(
+            //    this.position.x + this.radius + this.velocity.x > playArea.width ||
+            //    this.position.x - this.radius + this.velocity.x < 0
+            //    ){
+            //    this.velocity.x = -this.velocity.x * 0.7;
+            //}
+            this.velocity = this.velocity.multiplyByScalar(0.98)
             if (this.velocity.length() < this.threshold) {
                 this.velocity = new Vector(0, 0);
             }
@@ -144,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function() {
             this.init = undefined;
             this.power = 0;
             this.shot = false;
-            this.maxPower = 15;
+            this.maxPower = 20;
         }
         strike(){
             this.shot = true;
@@ -227,11 +238,12 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         draw(){
             //ctx.rect(this.barPos.x, this.barPos.y,this.barDim.x, this.barDim.y);
-            console.log(this.barPos.x, this.barPos.y, this.barDim.x)
+            ctx.fillStyle = 'white';
             ctx.rect(playArea.width - 30, playArea.height - 300, 30,300)
-            ctx.stroke();
+            ctx.fill();
         }
         update(){
+            this.draw();
             if(cue.locked){
                 const difference = Math.abs(cue.init - mouse.x);
                 const power = difference/3;
@@ -243,12 +255,48 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             else this.power = 0;
             
-            this.draw();
+            
         }
     }
-    
+    class Pockets {
+        constructor(){
+            
+            this.outCrop = 60;
+            this.pocketRadius = 20;
+        }
+        draw(){
+            function drawPocket (x,y){
+                const radius = 20;
+                ctx.beginPath();
+                ctx.fillStyle = "black";
+                ctx.arc(x,y,radius, 0, Math.PI * 2, false);
+                ctx.fill();
+                ctx.closePath();
+            }
+            drawPocket(this.outCrop, playArea.height - this.outCrop);
+
+            drawPocket(playArea.width - this.outCrop, playArea.height -  this.outCrop);
+
+            drawPocket(this.outCrop,this.outCrop);
+
+            drawPocket(playArea.width - this.outCrop, this.outCrop);
+
+            drawPocket(playArea.width / 2 , this.outCrop);
+
+            drawPocket(playArea.width / 2 , playArea.height - this.outCrop);
+            
+            ctx.rect(this.outCrop, this.outCrop, playArea.width - 2*this.outCrop, playArea.height - 2*this.outCrop)
+            ctx.stroke()
+        
+        }
+        update(){
+            this.draw();
+        }
+
+    }
     const cue = new Cue(10, 200, "brown");
     const powerBar = new PowerBar();
+    const pockets = new Pockets();
     
     playArea.addEventListener("mousedown", () => {
         cue.locked = true;
@@ -335,7 +383,9 @@ document.addEventListener("DOMContentLoaded", function() {
                 cue.cueCollidingWithBall(ball)
                 ballCollidingWithBall(ball) 
             });
+            
             powerBar.update();
+            pockets.update();
             //update dues position to follow mouse
             if (mouse.x !== undefined && mouse.y !== undefined) {
                 cue.update()
