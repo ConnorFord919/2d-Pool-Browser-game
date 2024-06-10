@@ -1,11 +1,14 @@
 
 document.addEventListener("DOMContentLoaded", function() {
     const playArea = document.getElementById("playArea");
-    playArea.width = window.innerWidth;
-    playArea.height = window.innerHeight;
+    playArea.width = 800;
+    playArea.height = 400;
     const ctx = playArea.getContext("2d");
     let fpsInterval, startTime, now, then, elapsed;
     let balls = [];
+    let inHand = true;
+    const displayCurrentPlayer = document.getElementById('currentPlayer');
+    let turnCount = 0;
     const mouse = {
         x: undefined,
         y: undefined
@@ -60,6 +63,7 @@ document.addEventListener("DOMContentLoaded", function() {
             this.velocity = new Vector(0,0);
             this.threshold = 0.05;
             this.moving = false;
+            this.inGoal = false;
         }
 
         draw() {
@@ -70,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function() {
             ctx.closePath();
         }
         handleCollision(other){
-            
+            if(inHand)return;
             const nVector = this.position.subtract(other.position);
 
             const distance = nVector.length();
@@ -102,38 +106,64 @@ document.addEventListener("DOMContentLoaded", function() {
            this.velocity = v1nTag.add(v1tTag)
            other.velocity = v2nTag.add(v2tTag)
         }
-        update() {
-            //vertical collisions
 
-            //pocket rectangle collisions
-            //horizontal
-            if(this.position.x + -this.radius + this.velocity.x < pockets.outCrop ||
-                this.position.x + this.radius + this.velocity.x > playArea.width - pockets.outCrop
-            ){
-                this.velocity.x = -this.velocity.x * 0.7;
+        update() {
+            if(!inHand){
+                pockets.forEach((pocket) => {
+                    const sideA = Math.abs(this.position.y - pocket.y);
+                    const sideB = Math.abs(this.position.x - pocket.x);
+                    const distance = Math.sqrt(Math.pow(sideA, 2) + Math.pow(sideB, 2));
+                    if(distance <= this.radius + pocket.radius) {
+                        if(this.color !== 'white'){
+                            if(this.color === 'black'){
+                                endGame('loses');
+                            }
+                            else{
+                                if(playerTurn === 1) playerOneScore.push(this);
+                                else playerTwoScore.push(this);
+                                balls.splice(balls.indexOf(this), 1);
+                            }
+                        }
+                        else{
+                            inHand = true;
+                        } 
+                    }
+                })
+                if(!this.inGoal){
+                    if(this.position.x - this.radius + this.velocity.x < boundary.outCrop ||
+                        this.position.x + this.radius + this.velocity.x > playArea.width - boundary.outCrop
+                    ){
+                        this.velocity.x = -this.velocity.x * 0.7;
+                    }
+                    if (
+                        this.position.y + this.radius + this.velocity.y > playArea.height - boundary.outCrop ||
+                        this.position.y - this.radius + this.velocity.y < boundary.outCrop
+                        ) {
+                        this.velocity.y = -this.velocity.y * 0.7; // some damping
+                    } 
+                }
+                
+                this.velocity = this.velocity.multiplyByScalar(0.98)
+                if (this.velocity.length() < this.threshold) {
+                    this.velocity = new Vector(0, 0);
+                }
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
             }
-            //vertical
-            console.log('f')
-            if (
-                this.position.y + this.radius + this.velocity.y > playArea.height - pockets.outCrop ||
-                this.position.y - this.radius + this.velocity.y < pockets.outCrop
-                ) {
-                    console.log('vertical collision')
-                this.velocity.y = -this.velocity.y * 0.7; // some damping
-            } 
-            //horizontal collisions
-            //if(
-            //    this.position.x + this.radius + this.velocity.x > playArea.width ||
-            //    this.position.x - this.radius + this.velocity.x < 0
-            //    ){
-            //    this.velocity.x = -this.velocity.x * 0.7;
-            //}
-            this.velocity = this.velocity.multiplyByScalar(0.98)
-            if (this.velocity.length() < this.threshold) {
-                this.velocity = new Vector(0, 0);
+            else{
+                if(this.color === 'white'){
+                    this.velocity = new Vector(0,0)
+                    if(mouse.x < playArea.width/2 + 100 ){
+                        if(turnCount === 0)mouse.x = playArea.width/2 + 100;
+                    }
+                    this.position.x = mouse.x;
+                    this.position.y = mouse.y;
+                    playArea.addEventListener('mousedown',() => {
+                        inHand = false;
+                        console.log(this)
+                    })
+                }
             }
-            this.position.x += this.velocity.x;
-            this.position.y += this.velocity.y;
             this.draw();
         }
     }
@@ -158,12 +188,19 @@ document.addEventListener("DOMContentLoaded", function() {
             this.maxPower = 20;
         }
         strike(){
-            this.shot = true;
             const whiteBall = getWhiteBall();
-            //this.prehitPos = this.position;
-            const direction = whiteBall.position.subtract(cue.position).normalize();
-            cue.velocity = direction.multiplyByScalar(this.power);
-            whiteBall.moving = true;
+            console.log(whiteBall.moving)
+            if(!this.locked && this.power > 0.01){
+                this.shot = true;
+                //this.prehitPos = this.position;
+                const direction = whiteBall.position.subtract(cue.position).normalize();
+                cue.velocity = direction.multiplyByScalar(this.power);
+                whiteBall.moving = true;
+                if(playerTurn === 1) playerTurn = 2;
+                else playerTurn = 1;   
+                turnCount ++; 
+                displayCurrentPlayer.innerText = `Player ${playerTurn}`;
+            }   
         }
         draw() {
             const noMovement = () => {
@@ -173,10 +210,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 })
                 return flag;
             }
-            if(noMovement()){
+            if(noMovement() && !inHand){
                 ctx.beginPath();
                 ctx.arc(this.position.x, this.position.y, 5, 0, Math.PI * 2, false);
-                ctx.fillStyle = 'white';
+                ctx.fillStyle = 'pink';
                 ctx.fill();
             
                 if(!cue.locked){
@@ -258,45 +295,45 @@ document.addEventListener("DOMContentLoaded", function() {
             
         }
     }
-    class Pockets {
-        constructor(){
-            
-            this.outCrop = 60;
-            this.pocketRadius = 20;
+    class Pocket {
+        constructor(x,y){
+            this.x = x;
+            this.y = y;
+            this.radius = 20;
         }
         draw(){
-            function drawPocket (x,y){
-                const radius = 20;
-                ctx.beginPath();
-                ctx.fillStyle = "black";
-                ctx.arc(x,y,radius, 0, Math.PI * 2, false);
-                ctx.fill();
-                ctx.closePath();
-            }
-            drawPocket(this.outCrop, playArea.height - this.outCrop);
-
-            drawPocket(playArea.width - this.outCrop, playArea.height -  this.outCrop);
-
-            drawPocket(this.outCrop,this.outCrop);
-
-            drawPocket(playArea.width - this.outCrop, this.outCrop);
-
-            drawPocket(playArea.width / 2 , this.outCrop);
-
-            drawPocket(playArea.width / 2 , playArea.height - this.outCrop);
-            
+            ctx.beginPath();
+            ctx.fillStyle = "black";
+            ctx.arc(this.x,this.y,this.radius, 0, Math.PI * 2, false);
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+    class Boundary {
+        constructor(){
+            this.outCrop = 10;
+        }
+        draw(){  
             ctx.rect(this.outCrop, this.outCrop, playArea.width - 2*this.outCrop, playArea.height - 2*this.outCrop)
             ctx.stroke()
         
         }
-        update(){
-            this.draw();
-        }
-
     }
+
+    let playerTurn = 1;
     const cue = new Cue(10, 200, "brown");
     const powerBar = new PowerBar();
-    const pockets = new Pockets();
+    const boundary = new Boundary();
+    const pockets = [
+        new Pocket(boundary.outCrop, playArea.height - boundary.outCrop),
+        new Pocket(playArea.width - boundary.outCrop, playArea.height -  boundary.outCrop),
+        new Pocket(boundary.outCrop,boundary.outCrop),
+        new Pocket(playArea.width - boundary.outCrop, boundary.outCrop),
+        new Pocket(playArea.width / 2 , boundary.outCrop),
+        new Pocket(playArea.width / 2 , playArea.height - boundary.outCrop),
+    ]
+    let playerOneScore = [];
+    let playerTwoScore = [];
     
     playArea.addEventListener("mousedown", () => {
         cue.locked = true;
@@ -317,17 +354,12 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     function init() {
-        playArea.width = 800;
-        playArea.height = 450;
+
         const newBall = (x,y,color) => balls.push(new Ball(x, y, color))
         const middleHeight = playArea.height/2;
-        const trianglePos = 500;
+        const trianglePos = 300;
         const ballColorsSolid = [ "red", "green", "orange", "purple", "brown", "yellow", "blue"];
         const ballColorStripes = [ "","","","","","","", "red", "green", "orange", "purple", "brown", "yellow", "blue"];
-        //for (let i = 0; i < 13; i++) {
-        //    if(i > 7) balls.push(new Ball((i * 50) , playArea.height/2, ballColorStripes[i]));
-        //    else balls.push(new Ball((i * 50) ,playArea.height/2, ballColorsSolid[i])); 
-        //}
         newBall(trianglePos, middleHeight, "yellow");
         newBall(trianglePos-25 , middleHeight-15, "red");
         newBall(trianglePos-25 , middleHeight+15, "blue");
@@ -347,13 +379,17 @@ document.addEventListener("DOMContentLoaded", function() {
         fpsInterval = 1000 / 120;
         then = Date.now();
         startTime = then;
-        let ballPos = [];
-        balls.forEach((b) => {
-            ballPos.push(b.position);
-        })
+        console.log(balls)
         animate();
     }
-
+    console.log(balls)
+    function endGame(outcome){
+        window.alert(`Player ${playerTurn} ${outcome} `);
+        playerOneScore = [];
+        playerTwoScore = [];
+        balls = [];
+        init();
+    }
     function ballCollidingWithBall(ball){
         balls.forEach((b) => {
             let sideA = Math.abs(ball.position.y - b.position.y);
@@ -385,7 +421,10 @@ document.addEventListener("DOMContentLoaded", function() {
             });
             
             powerBar.update();
-            pockets.update();
+            boundary.draw();
+            pockets.forEach((pocket)=>{
+                pocket.draw()
+            })
             //update dues position to follow mouse
             if (mouse.x !== undefined && mouse.y !== undefined) {
                 cue.update()
