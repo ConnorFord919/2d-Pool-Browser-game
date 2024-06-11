@@ -161,12 +161,13 @@ document.addEventListener("DOMContentLoaded", function() {
                     if(mouse.x > playArea.width - boundary.outCrop ) this.position.x = playArea.width -this.radius
                     this.position.x = mouse.x;
                     this.position.y = mouse.y;
-                    ctx.beginPath();
-                    ctx.moveTo(playArea.width/2+100, 0);
-                    ctx.lineTo(playArea.width/2+100, playArea.height);
-                    ctx.stroke()
-                    ctx.closePath();
-
+                    if(turnCount === 0){
+                        ctx.beginPath();
+                        ctx.moveTo(playArea.width/2+100, 0);
+                        ctx.lineTo(playArea.width/2+100, playArea.height);
+                        ctx.stroke()
+                        ctx.closePath();
+                    }
                     playArea.addEventListener('mousedown',() => {
                         inHand = false;
                         console.log(this)
@@ -228,10 +229,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 ctx.fillStyle = 'white';
                 ctx.arc(this.position.x, this.position.y, 1, 0, Math.PI * 2, false);
                 ctx.fill();
-                ctx.lineWidth = '3';
-                ctx.moveTo(this.position.x, this.position.y);
-                ctx.lineTo(this.position.x + (this.position.x - mouse.x),this.position.y + (this.position.y - mouse.y));
-                ctx.stroke();
+                if(!this.locked){
+                    ctx.lineWidth = '3';
+                    ctx.moveTo(this.position.x, this.position.y);
+                    ctx.lineTo(this.position.x + (this.position.x - mouse.x),this.position.y + (this.position.y - mouse.y));
+                    ctx.stroke();
+                }
                 ctx.strokeStyle = 'black'
                 ctx.lineWidth = '1'
                 if(!cue.locked){
@@ -336,7 +339,6 @@ document.addEventListener("DOMContentLoaded", function() {
         draw(){  
             ctx.rect(this.outCrop, this.outCrop, playArea.width - 2*this.outCrop, playArea.height - 2*this.outCrop)
             ctx.stroke()
-        
         }
     }
 
@@ -349,8 +351,8 @@ document.addEventListener("DOMContentLoaded", function() {
         new Pocket(playArea.width - boundary.outCrop, playArea.height -  boundary.outCrop),
         new Pocket(boundary.outCrop,boundary.outCrop),
         new Pocket(playArea.width - boundary.outCrop, boundary.outCrop),
-        new Pocket(playArea.width / 2 , boundary.outCrop),
-        new Pocket(playArea.width / 2 , playArea.height - boundary.outCrop),
+        new Pocket(playArea.width / 2 , 0),
+        new Pocket(playArea.width / 2 , playArea.height),
     ]
     let playerOneScore = [];
     let playerTwoScore = [];
