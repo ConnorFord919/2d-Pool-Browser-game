@@ -1,9 +1,11 @@
 
 document.addEventListener("DOMContentLoaded", function() {
     const playArea = document.getElementById("playArea");
+    const UI = document.getElementById('playerUI');
     playArea.width = 800;
     playArea.height = 400;
     const ctx = playArea.getContext("2d");
+    const ctxUI = UI.getContext('2d');
     let fpsInterval, startTime, now, then, elapsed;
     let balls = [];
     let inHand = true;
@@ -154,14 +156,25 @@ document.addEventListener("DOMContentLoaded", function() {
                 if(this.color === 'white'){
                     this.velocity = new Vector(0,0)
                     if(mouse.x < playArea.width/2 + 100 ){
-                        if(turnCount === 0)mouse.x = playArea.width/2 + 100;
+                        if(turnCount === 0) mouse.x = playArea.width/2 + 100;
                     }
+                    if(mouse.x > playArea.width - boundary.outCrop ) this.position.x = playArea.width -this.radius
                     this.position.x = mouse.x;
                     this.position.y = mouse.y;
+                    ctx.beginPath();
+                    ctx.moveTo(playArea.width/2+100, 0);
+                    ctx.lineTo(playArea.width/2+100, playArea.height);
+                    ctx.stroke()
+                    ctx.closePath();
+
                     playArea.addEventListener('mousedown',() => {
                         inHand = false;
                         console.log(this)
                     })
+                }
+                else{
+                    this.position.x += this.velocity.x;
+                    this.position.y += this.velocity.y;
                 }
             }
             this.draw();
@@ -212,10 +225,15 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             if(noMovement() && !inHand){
                 ctx.beginPath();
-                ctx.arc(this.position.x, this.position.y, 5, 0, Math.PI * 2, false);
-                ctx.fillStyle = 'pink';
+                ctx.fillStyle = 'white';
+                ctx.arc(this.position.x, this.position.y, 1, 0, Math.PI * 2, false);
                 ctx.fill();
-            
+                ctx.lineWidth = '3';
+                ctx.moveTo(this.position.x, this.position.y);
+                ctx.lineTo(this.position.x + (this.position.x - mouse.x),this.position.y + (this.position.y - mouse.y));
+                ctx.stroke();
+                ctx.strokeStyle = 'black'
+                ctx.lineWidth = '1'
                 if(!cue.locked){
                     ctx.moveTo(this.position.x, this.position.y);
                     ctx.lineTo(mouse.x, mouse.y);
@@ -275,23 +293,25 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         draw(){
             //ctx.rect(this.barPos.x, this.barPos.y,this.barDim.x, this.barDim.y);
-            ctx.fillStyle = 'white';
-            ctx.rect(playArea.width - 30, playArea.height - 300, 30,300)
-            ctx.fill();
+            ctxUI.fillStyle = 'yellow';
+            ctxUI.rect(0, UI.height-30, UI.width,30)
+            ctxUI.fill();
         }
         update(){
+            console.log(this.power, cue.locked)
+            ctxUI.clearRect(0,0, UI.width, UI.height)
             this.draw();
             if(cue.locked){
                 const difference = Math.abs(cue.init - mouse.x);
                 const power = difference/3;
                 if(power > cue.threshold) powerBar.power = cue.threshold;
-                ctx.fillStyle = 'red'
-                ctx.rect(playArea.width - 30, playArea.height - 300,30, this.power*10)
-                ctx.fill()
+                //ctx.fillStyle = 'red'
+                ctxUI.rect(0,UI.height-30,this.power*10, 30);
+                ctxUI.stroke();
+                //ctxUI.fill()
                 powerBar.power = power;
             }
             else this.power = 0;
-            
             
         }
     }
@@ -354,7 +374,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     function init() {
-
+        displayCurrentPlayer.innerText = `Player ${playerTurn} Starts` ;
         const newBall = (x,y,color) => balls.push(new Ball(x, y, color))
         const middleHeight = playArea.height/2;
         const trianglePos = 300;
