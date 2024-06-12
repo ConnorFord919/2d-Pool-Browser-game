@@ -5,12 +5,22 @@ playArea.width = 800;
 playArea.height = 400;
 const socket = io();
 
+//global functions
 const getWhiteBall = () => {
     return ballsLocal.find((ball) => ball.color === 'white');
 }
 
+const drawBall = (x,y,radius) => {
+    ctx.beginPath();
+    ctx.arc(x, y,radius, 0, Math.PI * 2, false);
+    ctx.fillStyle = ball.color;
+    ctx.fill();
+    ctx.closePath();
+}
 
-//classes
+
+//Front end classes
+
 class Vector {
     constructor(x, y) {
         this.x = x;
@@ -44,7 +54,7 @@ class Vector {
         return new Vector(this.x / length, this.y / length);
     }
 }
-  class Cue {
+class Cue {
     constructor(x, y) {
         this.position = new Vector(x, y);
         this.velocity = new Vector(0, 0);
@@ -58,7 +68,6 @@ class Vector {
     }
     strike(){
         const whiteBall = getWhiteBall();
-        console.log(whiteBall.moving)
         if(!this.locked && this.power > 0.01){
             this.shot = true;
             //this.prehitPos = this.position;
@@ -116,10 +125,7 @@ class Vector {
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
         } 
-        // 10 pixels away in the x direction
-        // 10 pixels away in the y direction
-        // Calculate the angle in radians
-        this.draw(); // Draw the cue at the new origin and rotation
+        this.draw();
     }
     cueCollidingWithBall(ball) {
         if(ball.color === 'white'){
@@ -135,12 +141,7 @@ class Vector {
         }
     }
     handleCueCollision(ball) {
-       //console.log(this.velocity)
-       //const relv = cue.position.subtract(ball.position);
-       //const angle = Math.atan2(relv.y, relv.x); // Calculate the angle in radians
         ball.handleCollision(cue);
-        //ball.velocity.x = this.power * Math.cos(angle);
-        //ball.velocity.y = this.power * Math.sin(angle);
     }
 }
 //global variables
@@ -149,8 +150,7 @@ const mouse = {
     x : undefined,
     y : undefined
 }
-const cue = new Cue(7, 0);
-
+const cue = new Cue(mouse.x, mouse.y);
 
 playArea.addEventListener("mousemove", function(e) {
     const rect = playArea.getBoundingClientRect();
@@ -158,17 +158,17 @@ playArea.addEventListener("mousemove", function(e) {
     mouse.y = e.clientY - rect.top;
 });
 playArea.addEventListener("mousedown", () => {
-    cue.initialPosition.x = mouse.x;
-    cue.initialPosition.y = mouse.y;
-    cue.initialTime = new Date();
+    cue.locked = true;
+    cue.init = mouse.x;
 });
 playArea.addEventListener("mouseup", () => {
-    cue.finalPosition.x = mouse.x;
-    cue.finalPosition.y = mouse.y; 
-    cue.finalTime = new Date();
+    cue.locked = false;
+    const difference = Math.abs(cue.init - mouse.x);
+    const power = difference/6;
+    cue.power = power;
+    if(cue.power > cue.maxPower) cue.power = cue.maxPower;
+    cue.strike();
 });
-
-
 
 
 socket.on('updateGame', (balls) => {
@@ -176,11 +176,8 @@ socket.on('updateGame', (balls) => {
     ctx.clearRect(0, 0, playArea.width, playArea.height);
     ballsLocal.forEach((ball) => {
         cue.cueCollidingWithBall(ball)
-        ctx.beginPath();
-        ctx.arc(ball.position.x, ball.position.y, ball.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = ball.color;
-        ctx.fill();
-        ctx.closePath();
+        drawBall(ball.position.x, ball.position.y, ball.radius);
+        
     })
     cue.update();
 })
